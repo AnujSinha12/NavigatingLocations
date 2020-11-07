@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+    {% load static %}
+    {% load leaflet_tags %}
+<head>
+    <meta charset="UTF-8">
+    <title>Map</title>
+    {% leaflet_js %}
+    {% leaflet_css %}
+
+    <style type="text/css">
+        #gis{width:80%;height:700px}
+    </style>
+    <link rel="stylesheet" type="text/css" href="{% static 'leaflet-groupedlayercontrol/leaflet.groupedlayercontrol.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'routing/leaflet-routing-machine.css' %}">
+
+    <script type="text/javascript" src="{% static 'dist/leaflet.ajax.js' %}"></script>
+    <script type="text/javascript" src="{% static 'leaflet-groupedlayercontrol/leaflet.groupedlayercontrol.js' %}"></script>
+    <script type="text/javascript" src="{% static 'routing/leaflet-routing-machine.js' %}" ></script>
+
+</head>
+<body>
+    <h1>Navigating between the locations</h1>
+    <script type="text/javascript">
+        function our_layers(map, options)
+        {
+
+            //osm tiles
+            var osm = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}{y}{x}.png', {
+                maxZoom:19,
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            });
+
+            //opentopomap tiles
+            var OpenTopoMap = L.tileLayer('http://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                maxZoom: 17,
+                attribution: 'Map data: &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+		    });
+
+
+             //Counties Model
+            //Getting data for url county and adding popup for each feature for Counties model data style, onEachFeature are overridden functions
+            var datasets = new L.GeoJSON.AJAX("{% url 'county' %}", {
+            style: function(feature){
+
+                //To change style based on counties name
+                switch(feature.properties.counties)
+                {
+                    case 'WAJIR':
+                        return{
+                            color:'orange',
+                            fillOpacity: 0.8
+                        }
+
+                    case 'ISIOLO':
+                        return{
+                            color:'purple',
+                            fillOpacity: 0.8
+                        }
+                }
+            },
+
+            onEachFeature: function(feature, layer){
+                layer.bindPopup(feature.properties.counties.toString());
+            }
+            });
+
+
+            //Incidences
+            var points = new L.GeoJSON.AJAX("{% url 'incidences' %}", {
+            onEachFeature:function(feature, layer){
+                layer.bindPopup(feature.properties.name.toString());
+            }
+            });
+
+
+
+            //adding data to the map
+            points.addTo(map)
+            datasets.addTo(map)
+
+
+            //Grouping of base layers
+            var baseLayers = {
+                "OSM":osm,
+                "OpenTopoMap":OpenTopoMap
+            };
+
+            //Grouping of overlay layers(counties, incidences)
+            var groupedOverLays = {
+                "Layers": {
+                    "counties": datasets,
+                    "incidences": points
+                }
+            };
+
+            L.control.groupedLayers(baseLayers, groupedOverLays).addTo(map);
+
+            //To get route between two coordinates
+            var routing =  L.Routing.control({
+              waypoints: [
+                L.latLng(-2.135431, 38.531417),
+                L.latLng(-1.179116, 36.717255)
+              ],
+              routeWhileDragging: true
+            }).addTo(map);
+        }
+    </script>
+    {% leaflet_map "gis" callback="window.our_layers" %}
+</body>
+</html>
